@@ -116,6 +116,6 @@ class QuantFragment(Base):
     intensity = Column(Numeric)
     interference = Column(Numeric)
     signalToNoise = Column(Numeric)
-    idFragement = Column(Integer, ForeignKey(Fragment.idFragment))
+    idFragment = Column(Integer, ForeignKey(Fragment.idFragment))
     idRun = Column(Integer, ForeignKey(Run.idRun))
 

@@ -106,6 +106,12 @@ def setUpSession():
     session = Session()
     return session
 
+def insertInto(columns, tablename, data, session):
+    insert_set = convert_to_insertset(columns, data)
+    generator = generatorFactory(tablename)
+    exper = insertDataIntoTable(insert_set, generator, session)
+    data = pd.merge(left = data, right= exper, left_on =columns.values(), right_on=columns.keys(),copy=False)
+    return data
 
 if __name__ == "__main__":
     session = setUpSession()
@@ -117,15 +123,11 @@ if __name__ == "__main__":
     # cick out decoys.
     # remove decoys
     dfProtID = df[df['PG.ProteinGroupID'] != 'n. def.']
+    dfProtID = dfProtID.replace( 'n. def.', 'NaN')
+
     mappings = get_specnaut_mappings("../MappingSpectronaut.csv")
     table_filling_order = ["Experiment", "Run", "Protein", "Peptide", "Precursor", "QuantPeptide", "Precursor", "Fragment"]
 
-    def insertInto(columns, tablename, data, session):
-        insert_set = convert_to_insertset(columns, data)
-        generator = generatorFactory(tablename)
-        exper = insertDataIntoTable(insert_set, generator, session)
-        data = pd.merge(left = data, right= exper, left_on =columns.values(), right_on=columns.keys(),copy=False)
-        return data
 
     columns = get_column_mappings(mappings, "Experiment", dfProtID)
     dfExp = insertInto(columns, "Experiment", dfProtID,session)
@@ -133,7 +135,6 @@ if __name__ == "__main__":
     columns = get_column_mappings(mappings, "Run" , dfProtID)
     columns['idExperiment'] = 'idExperiment'
     dfRun = insertInto(columns, "Run", dfExp, session)
-
     #
     columns = get_column_mappings(mappings,"Protein", dfProtID)
     dfProtein = insertInto(columns, "Protein", dfRun, session)
