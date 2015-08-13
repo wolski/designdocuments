@@ -22,6 +22,7 @@ class Peptide(Base):
     modifiedSequence = Column(String)
     score = Column(Numeric) # identification score i.e. peptideProphet
     scoreType = Column(Integer)
+    idProtein = Column(Integer,ForeignKey(Protein.idProtein)) # idiotset
 
 class ProteinPeptideAssociation(Base):
     __tablename__= "ProteinPeptideAssociation"
@@ -74,6 +75,14 @@ class QuantProtein(Base):
     idProtein = Column(Integer, ForeignKey(Protein.idProtein))
     idRun = Column(Integer, ForeignKey(Run.idRun))
 
+class QuantPeptide(Base):
+    __tablename__ = 'QuantPeptide'
+    idQuantPeptide = Column(Integer, primary_key=True, autoincrement=True)
+    area = Column(Numeric)
+    intensity = Column(Numeric)
+    signalToNoise = Column(Numeric)
+    idPeptide = Column(Integer,ForeignKey(Peptide.idPeptide))
+    idRun = Column(Integer, ForeignKey(Run.idRun))
 
 class QuantPrecursorLFQ(Base):
     __tablename__ = "QuantPrecursorLFQ"
@@ -83,8 +92,8 @@ class QuantPrecursorLFQ(Base):
     area = Column(Numeric)
     intensity = Column(Numeric)
     signalToNoise = Column(Numeric)
-    idQuantProtein = Column(Integer, ForeignKey(QuantProtein.idQuantProtein))
     idPrecursor = Column(Integer, ForeignKey(Precursor.idPrecursor))
+    idRun = Column(Integer, ForeignKey(Run.idRun))
 
 class QuantPrecursorDIA(Base):
     __tablename__ = "QuantPrecursorDIA"
@@ -94,8 +103,9 @@ class QuantPrecursorDIA(Base):
     intensity = Column(Numeric)
     cScore = Column(Numeric)
     qValue = Column(Numeric)
-    idQuantProtein = Column(Integer, ForeignKey(QuantProtein.idQuantProtein))
+    signalToNoise = Column(Numeric)
     idPrecursor = Column(Integer, ForeignKey(Precursor.idPrecursor))
+    idRun = Column(Integer, ForeignKey(Run.idRun))
 
 class QuantFragment(Base):
     __tablename__="QuantFragment"
@@ -106,6 +116,6 @@ class QuantFragment(Base):
     intensity = Column(Numeric)
     interference = Column(Numeric)
     signalToNoise = Column(Numeric)
-    idQuantPrecursorDIA = Column(Integer, ForeignKey(QuantPrecursorDIA.idQuantPrecursorDIA))
     idFragement = Column(Integer, ForeignKey(Fragment.idFragment))
+    idRun = Column(Integer, ForeignKey(Run.idRun))
 

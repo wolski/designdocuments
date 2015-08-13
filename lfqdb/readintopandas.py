@@ -33,40 +33,60 @@ def convert_to_insertset(columns_mappings, dataframe):
         res.append(row_map)
     return res
 
-
-
-#df = pd.read_table('/Users/witold/prog/imsbInfer/playground/20150811_131108_p1503_Sham_VS_Transection_Report.xls',header=0)
-#df.to_hdf("testdata.hdf5",'table',append=False)
-
-engine = create_engine('sqlite:///lfqdb.db')
-lfqdb.Base.metadata.drop_all(engine)
-lfqdb.Base.metadata.create_all(engine)
-Session = sessionmaker()
-Session.configure(bind=engine)
-session = Session()
-
-df = pd.read_hdf("testdata.hdf5",'table')
-print(df.columns.values)
-
-# cick out decoys.
-dfProtID = df[df['PG.ProteinGroupID'] != 'n. def.']
-del df
-dfProtID.reindex()
-
-mappings = get_specnaut_mappings("../MappingSpectronaut.csv")
-
-table_filling_order = ["Experiment", "Run", "Protein", "Peptide", "Precursor", "QuantPeptide", "Precursor", "Fragment"]
-
-columns = get_column_mappings(mappings, "Experiment", dfProtID)
-insert_set_experiment = convert_to_insertset(columns, dfProtID)
-
 def experimentGenrator(row_map):
     return lfqdb.Experiment(**row_map)
 
-def insertDataIntoTable(insert_set, experimentGenrator, session):
+def runGenerator(row_map):
+    return lfqdb.Run(**row_map)
+
+def proteinGenerator(row_map):
+    return lfqdb.Protein(**row_map)
+
+def peptideGenerator(row_map):
+    return lfqdb.Peptide(**row_map)
+
+def precursorGenerator(row_map):
+    return lfqdb.Precursor(**row_map)
+
+def fragmentGenerator(row_map):
+    return lfqdb.Fragment(**row_map)
+
+def quantPrecursorDiaGenerator(row_map):
+    return lfqdb.QuantPrecursorDIA(**row_map)
+
+def quantPrecursorLFQGenerator(row_map):
+    return lfqdb.QuantPrecursorLFQ(**row_map)
+
+def quantFragmentGenerator(row_map):
+    return lfqdb.QuantFragment(**row_map)
+
+
+def generatorFactory(name):
+    if name == "Experiment":
+        return experimentGenrator
+    elif name == "Run":
+        return runGenerator
+    elif name == "Protein":
+        return proteinGenerator
+    elif name == "Peptide":
+        return peptideGenerator
+    elif name == "Precursor":
+        return precursorGenerator
+    elif name == "Fragment":
+        return fragmentGenerator
+    elif name == "QuantPrecursorDIA":
+        return quantPrecursorDiaGenerator
+    elif name == "QuantPrecursorLFQ":
+        return quantPrecursorLFQGenerator
+    elif name == "QuantFragment":
+        return quantFragmentGenerator
+    else :
+        print "No such ting"
+
+def insertDataIntoTable(insert_set, tableRowGenerator, session):
     rows = []
     for row_map in insert_set:
-        tablerow = experimentGenrator(row_map)
+        tablerow = tableRowGenerator(row_map)
         session.add(tablerow)
         rows.append(tablerow)
     # with this the id's of the object are updated
@@ -77,62 +97,73 @@ def insertDataIntoTable(insert_set, experimentGenrator, session):
     rowsWithIDs.drop('_sa_instance_state',axis=1,inplace=True)
     return rowsWithIDs
 
-
-exper = insertDataIntoTable(insert_set_experiment, experimentGenrator, session)
-dfProtID = pd.merge(left = dfProtID, right= exper, left_on =columns.values(), right_on=columns.keys())
-
-columns = get_column_mappings("Run", dfProtID)
-insert_set_run = convert_to_insertset(columns, dfProtID)
-
-runs = []
-for row_map in insert_set_run:
-    row_map.update({"Experiment_idExperiment": exp[0].idExperiment})
-    run = lfqdb.Run(**row_map)
-    session.add(run)
-    runs.append(run)
-session.flush()
-
-runs = [x.__dict__ for x in runs]
-runs = pd.DataFrame(runs)
-runs.drop('_sa_instance_state',axis=1,inplace=True)
-
-dfProtID = pd.merge(left = dfProtID, right= runs, left_on =columns.values(), right_on=columns.keys())
+def setUpSession():
+    engine = create_engine('sqlite:///lfqdb.db')
+    lfqdb.Base.metadata.drop_all(engine)
+    lfqdb.Base.metadata.create_all(engine)
+    Session = sessionmaker()
+    Session.configure(bind=engine)
+    session = Session()
+    return session
 
 
-columns = get_column_mappings("Protein", dfProtID)
-insert_set_protein = convert_to_insertset(columns, dfProtID)
+if __name__ == "__main__":
+    session = setUpSession()
 
+    #df = pd.read_table('/Users/witold/prog/imsbInfer/playground/20150811_131108_p1503_Sham_VS_Transection_Report.xls',header=0)
+    #df.to_hdf("testdata.hdf5",'table',append=False)
 
+    df = pd.read_hdf("testdata.hdf5",'table')
+    # cick out decoys.
+    # remove decoys
+    dfProtID = df[df['PG.ProteinGroupID'] != 'n. def.']
+    mappings = get_specnaut_mappings("../MappingSpectronaut.csv")
+    table_filling_order = ["Experiment", "Run", "Protein", "Peptide", "Precursor", "QuantPeptide", "Precursor", "Fragment"]
 
-columns = get_column_mappings("Peptide", dfProtID)
-insert_set_peptide = convert_to_insertset(columns, dfProtID)
+    def insertInto(columns, tablename, data, session):
+        insert_set = convert_to_insertset(columns, data)
+        generator = generatorFactory(tablename)
+        exper = insertDataIntoTable(insert_set, generator, session)
+        data = pd.merge(left = data, right= exper, left_on =columns.values(), right_on=columns.keys(),copy=False)
+        return data
 
+    columns = get_column_mappings(mappings, "Experiment", dfProtID)
+    dfExp = insertInto(columns, "Experiment", dfProtID,session)
 
+    columns = get_column_mappings(mappings, "Run" , dfProtID)
+    columns['idExperiment'] = 'idExperiment'
+    dfRun = insertInto(columns, "Run", dfExp, session)
 
+    #
+    columns = get_column_mappings(mappings,"Protein", dfProtID)
+    dfProtein = insertInto(columns, "Protein", dfRun, session)
 
-idExperiment = exp[0].idExperiment
-print "experiment ID ", exp[0].idExperiment
+    columns = get_column_mappings(mappings,"Peptide", dfProtID)
+    columns['idProtein'] = 'idProtein'
+    dfPeptide = insertInto(columns, "Peptide", dfProtein, session)
 
+    columns = get_column_mappings(mappings,"Precursor", dfPeptide)
+    columns['idPeptide'] = 'idPeptide'
+    dfPeptide = insertInto(columns, "Precursor", dfPeptide, session)
 
-runs = []
-for row_map in insert_set_run:
-    row_map.update({"Experiment_idExperiment": exp[0].idExperiment})
-    run = lfqdb.Run(**row_map)
-    session.add(run)
-    runs.append(run)
-session.flush()
+    columns = get_column_mappings(mappings,"Fragment", dfPeptide)
+    columns['idPrecursor'] = 'idPrecursor'
+    dfFragment = insertInto(columns, "Fragment", dfPeptide, session)
 
+    columns = get_column_mappings(mappings,"QuantPrecursorDIA", dfFragment)
+    columns['idPrecursor'] = 'idPrecursor'
+    columns['idRun'] = 'idRun'
+    dfFragment = insertInto(columns, "QuantPrecursorDIA", dfFragment, session)
 
+    columns = get_column_mappings(mappings,"QuantPrecursorLFQ", dfFragment)
+    columns['idPrecursor'] = 'idPrecursor'
+    columns['idRun'] = 'idRun'
+    dfFragment = insertInto(columns, "QuantPrecursorLFQ", dfFragment, session)
 
+    columns = get_column_mappings(mappings,"QuantFragment",dfFragment)
+    columns['idFragment'] = 'idFragment'
+    columns['idRun'] = 'idRun'
+    dfFragment = insertInto(columns, "QuantFragment", dfFragment, session)
 
-for row_map in insert_set_protein:
-    protein = lfqdb.Protein(**row_map)
-    session.add(protein)
-
-for row_map in insert_set_peptide:
-    peptide = lfqdb.Peptide(**row_map)
-    session.add(peptide)
-
-
-session.commit()
+    session.commit()
 
