@@ -3,9 +3,8 @@ from getSpecnautMappings import get_specnaut_mappings
 import lfqdb
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-import itertools
 
-def get_column_mappings(table_name, df_prot_id):
+def get_column_mappings(mappings, table_name, df_prot_id):
     '''
     :param table_name:
     :param df_prot_id:
@@ -13,7 +12,6 @@ def get_column_mappings(table_name, df_prot_id):
     '''
     column_mappings = {}
     for key, value in mappings[table_name].iteritems():
-        print "{} {}".format(key, value)
         if value in df_prot_id:
             column_mappings[key] = value
     return column_mappings
@@ -52,30 +50,54 @@ print(df.columns.values)
 
 # cick out decoys.
 dfProtID = df[df['PG.ProteinGroupID'] != 'n. def.']
+del df
+dfProtID.reindex()
+
 mappings = get_specnaut_mappings("../MappingSpectronaut.csv")
 
 table_filling_order = ["Experiment", "Run", "Protein", "Peptide", "Precursor", "QuantPeptide", "Precursor", "Fragment"]
 
-columns = get_column_mappings("Experiment", dfProtID)
+columns = get_column_mappings(mappings, "Experiment", dfProtID)
 insert_set_experiment = convert_to_insertset(columns, dfProtID)
 
-exp = []
-for row_map in insert_set_experiment:
-    exp.append(lfqdb.Experiment(**row_map))
-    session.add(exp[0])
+def experimentGenrator(row_map):
+    return lfqdb.Experiment(**row_map)
 
-del insert_set_experiment
-session.flush()
+def insertDataIntoTable(insert_set, experimentGenrator, session):
+    rows = []
+    for row_map in insert_set:
+        tablerow = experimentGenrator(row_map)
+        session.add(tablerow)
+        rows.append(tablerow)
+    # with this the id's of the object are updated
+    session.flush()
+
+    rowsWithIDs = [x.__dict__ for x in rows]
+    rowsWithIDs = pd.DataFrame(rowsWithIDs)
+    rowsWithIDs.drop('_sa_instance_state',axis=1,inplace=True)
+    return rowsWithIDs
+
+
+exper = insertDataIntoTable(insert_set_experiment, experimentGenrator, session)
+dfProtID = pd.merge(left = dfProtID, right= exper, left_on =columns.values(), right_on=columns.keys())
 
 columns = get_column_mappings("Run", dfProtID)
 insert_set_run = convert_to_insertset(columns, dfProtID)
 
-rowidsRun = []
-for element in insert_set_run:
-    rowidsRun.append(df[df[mappings['Run']['fileName']]==element["fileName"]].index.tolist())
+runs = []
+for row_map in insert_set_run:
+    row_map.update({"Experiment_idExperiment": exp[0].idExperiment})
+    run = lfqdb.Run(**row_map)
+    session.add(run)
+    runs.append(run)
+session.flush()
 
+runs = [x.__dict__ for x in runs]
+runs = pd.DataFrame(runs)
+runs.drop('_sa_instance_state',axis=1,inplace=True)
 
-rowidsRun
+dfProtID = pd.merge(left = dfProtID, right= runs, left_on =columns.values(), right_on=columns.keys())
+
 
 columns = get_column_mappings("Protein", dfProtID)
 insert_set_protein = convert_to_insertset(columns, dfProtID)

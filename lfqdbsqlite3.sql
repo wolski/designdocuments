@@ -134,8 +134,8 @@ intensity DOUBLE NULL ,
 QuantProtein_idQuantProtein INT NULL ,
 Peptide_idPeptide INT NOT NULL ,
 PRIMARY KEY (idQuantPeptide, Peptide_idPeptide)  
-)
-;
+);
+
 CREATE INDEX fk_QuantPeptide_QuantProtein1_idx  ON QuantPeptide (QuantProtein_idQuantProtein ASC)  ;;
 CREATE INDEX fk_QuantPeptide_Peptide1_idx  ON QuantPeptide (Peptide_idPeptide ASC)  ;
 
