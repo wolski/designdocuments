@@ -60,7 +60,6 @@ def quantPrecursorLFQGenerator(row_map):
 def quantFragmentGenerator(row_map):
     return lfqdb.QuantFragment(**row_map)
 
-
 def generatorFactory(name):
     if name == "Experiment":
         return experimentGenrator
@@ -98,7 +97,7 @@ def insertDataIntoTable(insert_set, tableRowGenerator, session):
     return rowsWithIDs
 
 def setUpSession():
-    engine = create_engine('sqlite:///lfqdb.db')
+    engine = create_engine('sqlite:///lfqdb2.db')
     lfqdb.Base.metadata.drop_all(engine)
     lfqdb.Base.metadata.create_all(engine)
     Session = sessionmaker()

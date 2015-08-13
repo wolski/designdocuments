@@ -1,6 +1,6 @@
 __author__ = 'witold'
 
-from sqlalchemy import Table, Column, Integer, ForeignKey, String, Numeric
+from sqlalchemy import Column, Integer, ForeignKey, String, Numeric
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -11,6 +11,7 @@ class Protein(Base):
     idProtein = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     houseKeeping = Column(Integer)
+    #peptides = relationship("Peptide")
 
 class Peptide(Base):
     __tablename__ = "Peptide"
@@ -22,7 +23,8 @@ class Peptide(Base):
     modifiedSequence = Column(String)
     score = Column(Numeric) # identification score i.e. peptideProphet
     scoreType = Column(Integer)
-    idProtein = Column(Integer,ForeignKey(Protein.idProtein)) # idiotset
+    idProtein = Column(Integer,ForeignKey(Protein.idProtein))
+    precursors = relationship("Precursor")
 
 class ProteinPeptideAssociation(Base):
     __tablename__= "ProteinPeptideAssociation"
@@ -37,6 +39,7 @@ class Precursor(Base):
     mz = Column(Numeric)
     charge = Column(Integer)
     idPeptide = Column(Integer,ForeignKey(Peptide.idPeptide))
+    fragments = relationship("Fragment")
 
 class Fragment(Base):
     __tablename__ = "Fragment"
@@ -57,6 +60,7 @@ class Experiment(Base):
     idExperiment = Column(Integer,primary_key=True, autoincrement=True)
     name = Column(String)
     description = Column(String)
+    run = relationship('Run')
 
 class Run(Base):
     __tablename__ = 'Run'
@@ -65,6 +69,11 @@ class Run(Base):
     condition = Column(String)
     bioReplicate = Column(String)
     idExperiment = Column(Integer, ForeignKey(Experiment.idExperiment))
+    quantProtein = relationship('QuantProtein')
+    quantPeptide = relationship('QuantPeptide')
+    quantPrecursorLFQ = relationship('QuantPrecursorLFQ')
+    quantPrecursorDIA = relationship('QuantPrecursorDIA')
+    quantFragment = relationship('QuantFragment')
 
 class QuantProtein(Base):
     __tablename__ = 'QuantProtein'
