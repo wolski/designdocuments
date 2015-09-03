@@ -96,8 +96,16 @@ def insertDataIntoTable(insert_set, tableRowGenerator, session):
     rowsWithIDs.drop('_sa_instance_state',axis=1,inplace=True)
     return rowsWithIDs
 
-def setUpSession():
-    engine = create_engine('sqlite:///lfqdb2.db')
+def setUpSessionForRead(dbname):
+    engine = create_engine("{}{}".format("sqlite:///",dbname))
+    Session = sessionmaker()
+    Session.configure(bind=engine)
+    session = Session()
+    return session
+
+
+def setUpSessionForDBCreation(dbname):
+    engine = create_engine("{}{}".format("sqlite:///",dbname))
     lfqdb.Base.metadata.drop_all(engine)
     lfqdb.Base.metadata.create_all(engine)
     Session = sessionmaker()
@@ -113,7 +121,7 @@ def insertInto(columns, tablename, data, session):
     return data
 
 if __name__ == "__main__":
-    session = setUpSession()
+    session = setUpSessionForDBCreation("lfqdb2.db")
 
     #df = pd.read_table('/Users/witold/prog/imsbInfer/playground/20150811_131108_p1503_Sham_VS_Transection_Report.xls',header=0)
     #df.to_hdf("testdata.hdf5",'table',append=False)
@@ -125,8 +133,6 @@ if __name__ == "__main__":
     dfProtID = dfProtID.replace( 'n. def.', 'NaN')
 
     mappings = get_specnaut_mappings("../MappingSpectronaut.csv")
-    table_filling_order = ["Experiment", "Run", "Protein", "Peptide", "Precursor", "QuantPeptide", "Precursor", "Fragment"]
-
 
     columns = get_column_mappings(mappings, "Experiment", dfProtID)
     dfExp = insertInto(columns, "Experiment", dfProtID,session)
@@ -135,12 +141,12 @@ if __name__ == "__main__":
     columns['idExperiment'] = 'idExperiment'
     dfRun = insertInto(columns, "Run", dfExp, session)
     #
-    columns = get_column_mappings(mappings,"Protein", dfProtID)
-    dfProtein = insertInto(columns, "Protein", dfRun, session)
+    columnsProtein = get_column_mappings(mappings,"Protein", dfProtID)
+    dfProtein = insertInto(columnsProtein, "Protein", dfRun, session)
 
-    columns = get_column_mappings(mappings,"Peptide", dfProtID)
+    columnsPeptide = get_column_mappings(mappings,"Peptide", dfProtID)
     columns['idProtein'] = 'idProtein'
-    dfPeptide = insertInto(columns, "Peptide", dfProtein, session)
+    dfPeptide = insertInto(columnsPeptide, "Peptide", dfProtein, session)
 
     columns = get_column_mappings(mappings,"Precursor", dfPeptide)
     columns['idPeptide'] = 'idPeptide'

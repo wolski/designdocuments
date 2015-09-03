@@ -11,7 +11,7 @@ class Protein(Base):
     idProtein = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     houseKeeping = Column(Integer)
-    #peptides = relationship("Peptide")
+    peptides = relationship("Peptide")
 
 class Peptide(Base):
     __tablename__ = "Peptide"
